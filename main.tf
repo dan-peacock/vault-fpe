@@ -5,10 +5,9 @@ provider "vault" {
 }
 
 resource "vault_aws_secret_backend" "aws" {
-  access_key = var.root_access_key
-  secret_key = var.root_secret_key
-  path       = "aws"
-
+  access_key                = var.root_access_key
+  secret_key                = var.root_secret_key
+  path                      = "aws"
   default_lease_ttl_seconds = "120"
   max_lease_ttl_seconds     = "240"
 }
@@ -33,11 +32,6 @@ resource "vault_aws_secret_backend_role" "admin" {
 EOF
 }
 
-data "vault_aws_access_credentials" "creds" {
-  backend = vault_aws_secret_backend_role.admin.backend
-  role    = vault_aws_secret_backend_role.admin.name
-}
-
 resource "vault_mount" "transform" {
   path = "transform"
   type = "transform"
@@ -57,6 +51,11 @@ resource "vault_transform_role" "payments" {
   transformations = ["ccn-fpe"]
 }
 
+data "vault_aws_access_credentials" "creds" {
+  backend = vault_aws_secret_backend_role.admin.backend
+  role    = vault_aws_secret_backend_role.admin.name
+}
+
 data "vault_transform_encode" "test" {
     path        = vault_transform_role.payments.path
     role_name   = "payments"
@@ -65,6 +64,7 @@ data "vault_transform_encode" "test" {
 
 
 provider "aws" {
+  depends_on = [vault_aws_access_credentials]
   region     = var.region
   access_key = data.vault_aws_access_credentials.creds.access_key
   secret_key = data.vault_aws_access_credentials.creds.secret_key
